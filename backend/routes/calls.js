@@ -86,6 +86,23 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
+router.get('/stats', auth, async (req, res) => {
+  try {
+    const [callsToday, followups, firms] = await Promise.all([
+      db.query('SELECT COUNT(*) FROM calls WHERE user_id=$1 AND call_date::date=CURRENT_DATE', [req.user.id]),
+      db.query('SELECT COUNT(*) FROM calls WHERE user_id=$1 AND followup_date IS NOT NULL', [req.user.id]),
+      db.query('SELECT COUNT(DISTINCT company_id) FROM calls WHERE user_id=$1', [req.user.id])
+    ]);
+    res.json({
+      calls_today: parseInt(callsToday.rows[0].count),
+      followups: parseInt(followups.rows[0].count),
+      firms: parseInt(firms.rows[0].count)
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Statistika päring ebaõnnestus' });
+  }
+});
+
 router.get('/', auth, async (req, res) => {
   try {
     const result = await db.query(
@@ -104,20 +121,38 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-router.get('/stats', auth, async (req, res) => {
+router.put('/:id', auth, async (req, res) => {
+  const { comment, followup_date } = req.body;
   try {
-    const [callsToday, followups, firms] = await Promise.all([
-      db.query('SELECT COUNT(*) FROM calls WHERE user_id=$1 AND call_date::date=CURRENT_DATE', [req.user.id]),
-      db.query('SELECT COUNT(*) FROM calls WHERE user_id=$1 AND followup_date IS NOT NULL', [req.user.id]),
-      db.query('SELECT COUNT(DISTINCT company_id) FROM calls WHERE user_id=$1', [req.user.id])
-    ]);
-    res.json({
-      calls_today: parseInt(callsToday.rows[0].count),
-      followups: parseInt(followups.rows[0].count),
-      firms: parseInt(firms.rows[0].count)
-    });
+    await db.query(
+      'UPDATE calls SET comment=$1, followup_date=$2 WHERE id=$3 AND user_id=$4',
+      [comment, followup_date || null, req.params.id, req.user.id]
+    );
+    if (followup_date) {
+      await db.query(
+        `INSERT INTO calendar_events (user_id,call_id,title,event_date,description)
+         VALUES ($1,$2,$3,$4,$5)
+         ON CONFLICT (call_id) DO UPDATE SET event_date=$4, description=$5`,
+        [req.user.id, req.params.id, 'Järelkõne', followup_date, comment]
+      );
+    } else {
+      await db.query('DELETE FROM calendar_events WHERE call_id=$1 AND user_id=$2', [req.params.id, req.user.id]);
+    }
+    res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: 'Statistika päring ebaõnnestus' });
+    console.error(err);
+    res.status(500).json({ error: 'Uuendamine ebaõnnestus' });
+  }
+});
+
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    await db.query('DELETE FROM calendar_events WHERE call_id=$1 AND user_id=$2', [req.params.id, req.user.id]);
+    await db.query('DELETE FROM calls WHERE id=$1 AND user_id=$2', [req.params.id, req.user.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kustutamine ebaõnnestus' });
   }
 });
 
