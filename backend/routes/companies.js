@@ -39,7 +39,6 @@ router.post('/credit/:id', auth, async (req, res) => {
     const regNum = company.reg_number;
     const firmName = company.legal_name;
 
-    // Kasutame web_search tööriista — AI otsib ise internetist
     const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -53,56 +52,44 @@ router.post('/credit/:id', auth, async (req, res) => {
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         messages: [{
           role: 'user',
-          content: `Tee põhjalik krediidikontroll Eesti firmale vedelkütuste müügiks.
+          content: `Tee krediidikontroll Eesti firmale. Otsi infot inforegister.ee, ariregister.rik.ee ja äripäev.ee allikatest.
 
 Firma: ${firmName}
 Registrikood: ${regNum || 'teadmata'}
 
-Otsi infot järgmistest allikatest:
-1. inforegister.ee - finantsandmed, krediidiskoor, käive, kasum
-2. ariregister.rik.ee - äriregistri andmed, asutamiskuupäev, staatus
-3. emta.ee või maksuamet - maksuvõlad
-4. äripäev, storybook, regia - lisainfo
+Otsi: käive, kasum, töötajate arv, maksuvõlg, kohtuvaidlused, asutamisaasta, krediidiskoor.
 
-Seejärel tagasta AINULT see JSON (mitte midagi muud, mitte markdown):
-{
-  "score": 75,
-  "limit": 15000,
-  "days": 30,
-  "summary": "2-3 lause kokkuvõte eesti keeles mis põhjendab skoori",
-  "details": {
-    "age_years": 10,
-    "turnover": 1000000,
-    "profit": 50000,
-    "employees": 10,
-    "tax_debt": false,
-    "court_cases": 0,
-    "credit_rating": "usaldusväärne"
-  }
-}`
+Seejärel tagasta AINULT see JSON, mitte midagi muud, mitte markdown, mitte selgitusi väljaspool JSON-i:
+{"score":75,"limit":15000,"days":30,"summary":"2-3 lause kokkuvõte eesti keeles"}
+
+Skoori juhised:
+- score 1-100: 80+ roheline (tugev), 50-79 kollane (keskmine), alla 50 punane (kõrge risk)
+- limit: soovitatav krediidilimiit eurodes
+- days: maksetähtaeg (7, 14, 21, 30, 45, 60)
+- Anna ALATI skoor isegi kui andmed puuduvad — siis score alla 40, limit 0-500, days 7
+- Ära tagasta viga-objekti, ALATI tagasta score/limit/days/summary`
         }]
       })
     });
 
     const aiData = await aiRes.json();
-    console.log('Krediidi AI raw:', JSON.stringify(aiData).substring(0, 1000));
-
-    // Leia tekstiblokk vastusest
     const textBlock = aiData.content?.find(b => b.type === 'text');
     const text = (textBlock?.text || '').replace(/```json|```/g, '').trim();
-    console.log('Krediidi AI tekst:', text);
+    console.log('Krediidi AI tekst:', text.substring(0, 500));
 
-    let credit = { score: 50, limit: 2000, days: 14, summary: 'Andmeid ei leitud.' };
+    let credit = { score: 45, limit: 500, days: 7, summary: 'Andmeid ei leitud, soovitatav ettemaks.' };
     try {
-      const m = text.match(/\{[\s\S]*\}/);
+      const m = text.match(/\{[\s\S]*?\}/);
       if (m) {
         const parsed = JSON.parse(m[0]);
-        credit = {
-          score: parsed.score || 50,
-          limit: parsed.limit || 2000,
-          days: parsed.days || 14,
-          summary: parsed.summary || 'Andmeid ei leitud.'
-        };
+        if (parsed.score) {
+          credit = {
+            score: parsed.score,
+            limit: parsed.limit || 0,
+            days: parsed.days || 7,
+            summary: parsed.summary || 'Hinnang puudub.'
+          };
+        }
       }
     } catch (e) {
       console.log('JSON parse viga:', e.message);
