@@ -1,0 +1,9 @@
+{
+  "name": "kutusecrm",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "cd frontend && npm install && npm run build",
+    "start": "cd backend && npm install && node index.js",
+    "install-all": "cd backend && npm install && cd ../frontend && npm install"
+  }
+}
