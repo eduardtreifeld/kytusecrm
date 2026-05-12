@@ -3,6 +3,11 @@ import { api } from '../services/api';
 
 function formatDate(iso) {
   if (!iso) return '';
+  return new Date(iso).toLocaleDateString('et-EE');
+}
+
+function formatDateTime(iso) {
+  if (!iso) return '';
   const d = new Date(iso);
   return d.toLocaleDateString('et-EE') + ' ' + d.toLocaleTimeString('et-EE', { hour: '2-digit', minute: '2-digit' });
 }
@@ -48,25 +53,55 @@ export default function Dashboard({ onNewCall }) {
           <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={onNewCall}>Lisa esimene kõne</button>
         </div>
       ) : (
-        <div className="card" style={{ padding: '4px 12px' }}>
-          {calls.map(call => (
-            <div className="activity" key={call.id}>
-              <div className="avatar">{(call.company_name || 'F').substring(0, 2).toUpperCase()}</div>
-              <div className="activity-body">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div className="activity-firm">{call.legal_name || call.company_name}</div>
-                  {statusBadge(call.status, call.followup_date)}
-                </div>
-                <div className="activity-meta">{call.contact_name} · {formatDate(call.call_date)}</div>
-                <div className="activity-comment">{call.comment}</div>
-                {call.followup_date && (
-                  <div className="followup-tag">
-                    📅 Järelkõne: {new Date(call.followup_date).toLocaleDateString('et-EE')}
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 700 }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid #e8e8e8', textAlign: 'left' }}>
+                <th style={{ padding: '8px 10px', color: '#888', fontWeight: 500 }}>Viimane kontakt</th>
+                <th style={{ padding: '8px 10px', color: '#888', fontWeight: 500 }}>Järelkõne</th>
+                <th style={{ padding: '8px 10px', color: '#888', fontWeight: 500 }}>Firma</th>
+                <th style={{ padding: '8px 10px', color: '#888', fontWeight: 500 }}>Reg. kood</th>
+                <th style={{ padding: '8px 10px', color: '#888', fontWeight: 500 }}>Maakond</th>
+                <th style={{ padding: '8px 10px', color: '#888', fontWeight: 500 }}>Kontakt</th>
+                <th style={{ padding: '8px 10px', color: '#888', fontWeight: 500 }}>Kommentaar</th>
+                <th style={{ padding: '8px 10px', color: '#888', fontWeight: 500 }}>Staatus</th>
+              </tr>
+            </thead>
+            <tbody>
+              {calls.map(call => (
+                <tr key={call.id} style={{ borderBottom: '1px solid #f0f0f0' }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#f9f9f9'}
+                  onMouseLeave={e => e.currentTarget.style.background = ''}
+                >
+                  <td style={{ padding: '10px', whiteSpace: 'nowrap' }}>{formatDate(call.call_date)}</td>
+                  <td style={{ padding: '10px', whiteSpace: 'nowrap', color: call.followup_date ? '#856404' : '#888' }}>
+                    {call.followup_date ? formatDate(call.followup_date) : '—'}
+                  </td>
+                  <td style={{ padding: '10px', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                    {call.legal_name || call.company_name || '—'}
+                  </td>
+                  <td style={{ padding: '10px', whiteSpace: 'nowrap', color: '#888' }}>
+                    {call.reg_number || '—'}
+                  </td>
+                  <td style={{ padding: '10px', whiteSpace: 'nowrap' }}>
+                    {call.address ? call.address.split(',')[0] : '—'}
+                  </td>
+                  <td style={{ padding: '10px', whiteSpace: 'nowrap' }}>
+                    <div>{call.contact_name}</div>
+                    <div style={{ color: '#888' }}>{call.contact_phone}</div>
+                  </td>
+                  <td style={{ padding: '10px', maxWidth: 250 }}>
+                    <div style={{ overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                      {call.comment}
+                    </div>
+                  </td>
+                  <td style={{ padding: '10px' }}>
+                    {statusBadge(call.status, call.followup_date)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
