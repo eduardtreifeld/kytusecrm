@@ -39,6 +39,7 @@ Tee järgmist:
     });
 
     const data = await response.json();
+    console.log('Anthropic vastus:', JSON.stringify(data).substring(0, 500));
     const text = data.content?.[0]?.text || '';
     const lines = text.split('\n');
     const followupLine = lines.find(l => l.startsWith('JÄRELTEGEVUS:'));
