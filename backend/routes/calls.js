@@ -89,7 +89,8 @@ router.post('/', auth, async (req, res) => {
 router.get('/', auth, async (req, res) => {
   try {
     const result = await db.query(
-      `SELECT c.*, co.name as company_name, co.legal_name, co.sector
+      `SELECT c.*, co.name as company_name, co.legal_name, co.sector,
+              co.reg_number, co.address
        FROM calls c
        LEFT JOIN companies co ON c.company_id = co.id
        WHERE c.user_id = $1
