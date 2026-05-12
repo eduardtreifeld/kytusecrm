@@ -39,6 +39,30 @@ router.post('/credit/:id', auth, async (req, res) => {
     const regNum = company.reg_number;
     const firmName = company.legal_name;
 
+    // Lae Inforegistri leht otse
+    let infoHtml = '';
+    if (regNum) {
+      try {
+        const infoRes = await fetch(`https://www.inforegister.ee/en/${regNum}`, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml',
+            'Accept-Language': 'en-US,en;q=0.9'
+          }
+        });
+        infoHtml = await infoRes.text();
+        // Võta ainult relevantne osa
+        infoHtml = infoHtml.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+                           .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+                           .replace(/<[^>]+>/g, ' ')
+                           .replace(/\s+/g, ' ')
+                           .substring(0, 6000);
+        console.log('Inforegister HTML pikkus:', infoHtml.length);
+      } catch (e) {
+        console.log('Inforegister viga:', e.message);
+      }
+    }
+
     const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -48,34 +72,42 @@ router.post('/credit/:id', auth, async (req, res) => {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-5',
-        max_tokens: 2000,
-        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        max_tokens: 1000,
         messages: [{
           role: 'user',
-          content: `Tee krediidikontroll Eesti firmale. Otsi infot inforegister.ee, ariregister.rik.ee ja äripäev.ee allikatest.
+          content: `Sa oled krediidianalüütik Eesti vedelkütuste müügifirmas. Hinda kliendi krediidiriski.
 
 Firma: ${firmName}
 Registrikood: ${regNum || 'teadmata'}
 
-Otsi: käive, kasum, töötajate arv, maksuvõlg, kohtuvaidlused, asutamisaasta, krediidiskoor.
+Inforegistri andmed:
+${infoHtml || 'Andmed puuduvad'}
 
-Seejärel tagasta AINULT see JSON, mitte midagi muud, mitte markdown, mitte selgitusi väljaspool JSON-i:
-{"score":75,"limit":15000,"days":30,"summary":"2-3 lause kokkuvõte eesti keeles"}
+Analüüsi järgmisi näitajaid kui need on olemas:
+- Käive ja kasum (viimased aastad)
+- Töötajate arv
+- Maksuvõlg
+- Kohtuasjad
+- Firma vanus
+- Inforegistri krediidilimiit ja maksetähtaeg
+- Finantsreiting
+
+Tagasta AINULT see JSON, mitte midagi muud:
+{"score":75,"limit":15000,"days":30,"summary":"2-3 lause eestikeelne kokkuvõte mis mainib käivet, kasumit ja põhjendab skoori"}
 
 Skoori juhised:
-- score 1-100: 80+ roheline (tugev), 50-79 kollane (keskmine), alla 50 punane (kõrge risk)
-- limit: soovitatav krediidilimiit eurodes
-- days: maksetähtaeg (7, 14, 21, 30, 45, 60)
-- Anna ALATI skoor isegi kui andmed puuduvad — siis score alla 40, limit 0-500, days 7
-- Ära tagasta viga-objekti, ALATI tagasta score/limit/days/summary`
+- 80-100: tugev firma, pikk ajalugu, kasulik, maksuvõlg puudub
+- 50-79: keskmise riskiga, mõned puudujäägid
+- 1-49: kõrge risk, ettemaks soovitatav
+- limit: eurodes, lähtudes Inforegistri soovitusest või oma hinnangust
+- days: 0=ettemaks, 7, 14, 21, 30, 45, 60`
         }]
       })
     });
 
     const aiData = await aiRes.json();
-    const textBlock = aiData.content?.find(b => b.type === 'text');
-    const text = (textBlock?.text || '').replace(/```json|```/g, '').trim();
-    console.log('Krediidi AI tekst:', text.substring(0, 500));
+    const text = (aiData.content?.[0]?.text || '').replace(/```json|```/g, '').trim();
+    console.log('Krediidi AI tekst:', text.substring(0, 300));
 
     let credit = { score: 45, limit: 500, days: 7, summary: 'Andmeid ei leitud, soovitatav ettemaks.' };
     try {
