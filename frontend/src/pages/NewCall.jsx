@@ -29,7 +29,7 @@ export default function NewCall({ onSaved, onCancel }) {
       if (res?.results?.length > 0) {
         setFirmResults(res.results);
       } else {
-        setSearchError('Firmat ei leitud.');
+        setSearchError('Firmat ei leitud, proovi teise nimega.');
       }
     } catch (e) {
       setSearchError('Ühenduse viga, proovi uuesti.');
@@ -50,33 +50,46 @@ export default function NewCall({ onSaved, onCancel }) {
   }
 
   async function aiCorrect() {
-    if (!rawComment.trim()) return;
+    if (!rawComment.trim()) {
+      alert('Palun kirjuta esmalt kommentaar!');
+      return;
+    }
     setCorrecting(true);
     setAiComment('');
     setFollowupDate('');
-    const res = await api.aiCorrect(rawComment, firm?.legal_name, contactName);
-    setCorrecting(false);
-    if (res?.comment) {
-      setAiComment(res.comment);
-      if (res.followup_date) setFollowupDate(res.followup_date);
+    try {
+      const res = await api.aiCorrect(rawComment, firm?.legal_name, contactName);
+      if (res?.comment) {
+        setAiComment(res.comment);
+        if (res.followup_date) setFollowupDate(res.followup_date);
+      } else {
+        alert('AI vastus tuli tühjana. Proovi uuesti.');
+      }
+    } catch (e) {
+      alert('Viga AI ühenduses: ' + e.message);
     }
+    setCorrecting(false);
   }
 
   async function saveCall() {
     const finalComment = aiRef.current?.innerText || aiComment || rawComment;
     if (!finalComment.trim()) return;
     setSaving(true);
-    await api.saveCall({
-      company_id: savedCompany?.id,
-      contact_name: contactName,
-      contact_phone: contactPhone,
-      comment: finalComment,
-      raw_comment: rawComment,
-      followup_date: followupDate || null,
-      status: followupDate ? 'followup' : 'logged'
-    });
+    try {
+      await api.saveCall({
+        company_id: savedCompany?.id,
+        contact_name: contactName,
+        contact_phone: contactPhone,
+        comment: finalComment,
+        raw_comment: rawComment,
+        followup_date: followupDate || null,
+        status: followupDate ? 'followup' : 'logged'
+      });
+      onSaved();
+    } catch (e) {
+      alert('Salvestamine ebaõnnestus: ' + e.message);
+    }
     setSaving(false);
-    onSaved();
   }
 
   return (
@@ -116,7 +129,9 @@ export default function NewCall({ onSaved, onCancel }) {
               {firmResults.map((f, i) => (
                 <div key={i} className="firm-result" onClick={() => selectFirm(f)}>
                   <div className="firm-result-name">{f.legal_name}</div>
-                  <div className="firm-result-sub">{f.reg_number && `Reg: ${f.reg_number}`} {f.address && `· ${f.address}`}</div>
+                  <div className="firm-result-sub">
+                    {f.reg_number && `Reg: ${f.reg_number}`}{f.address && ` · ${f.address}`}
+                  </div>
                 </div>
               ))}
             </div>
@@ -190,15 +205,28 @@ export default function NewCall({ onSaved, onCancel }) {
               placeholder="nt. huvitatud diisel 50k liitrit, räägime uuesti 20 juunil..."
             />
           </div>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-            <button className="btn" style={{ flex: 1, justifyContent: 'center' }} onClick={aiCorrect} disabled={correcting}>
+          <div style={{ marginBottom: 14 }}>
+            <button
+              className="btn"
+              style={{ width: '100%', justifyContent: 'center' }}
+              onClick={aiCorrect}
+              disabled={correcting}
+            >
               {correcting ? <><span className="spinner" />AI töötab...</> : '✨ AI korrektsioon'}
             </button>
           </div>
+
           {aiComment && (
             <>
-              <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>AI korrigeeritud tekst (saad muuta):</div>
-              <div className="ai-box" contentEditable suppressContentEditableWarning ref={aiRef}>
+              <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>
+                AI korrigeeritud tekst (saad muuta):
+              </div>
+              <div
+                className="ai-box"
+                contentEditable
+                suppressContentEditableWarning
+                ref={aiRef}
+              >
                 {aiComment}
               </div>
               {followupDate && (
@@ -208,17 +236,29 @@ export default function NewCall({ onSaved, onCancel }) {
               )}
               <div className="field" style={{ marginTop: 10 }}>
                 <label>Järelkõne kuupäev (muuda vajadusel)</label>
-                <input type="date" value={followupDate} onChange={e => setFollowupDate(e.target.value)} />
+                <input
+                  type="date"
+                  value={followupDate}
+                  onChange={e => setFollowupDate(e.target.value)}
+                />
               </div>
               <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                <button className="btn" onClick={aiCorrect}>🔄 Uuesti</button>
-                <button className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }} onClick={saveCall} disabled={saving}>
+                <button className="btn" onClick={aiCorrect} disabled={correcting}>🔄 Uuesti</button>
+                <button
+                  className="btn btn-primary"
+                  style={{ flex: 1, justifyContent: 'center' }}
+                  onClick={saveCall}
+                  disabled={saving}
+                >
                   {saving ? <><span className="spinner" />Salvestab...</> : '💾 Salvesta kõne'}
                 </button>
               </div>
             </>
           )}
-          <button className="btn btn-block" style={{ marginTop: 10 }} onClick={() => setStep(2)}>← Tagasi</button>
+
+          <button className="btn btn-block" style={{ marginTop: 10 }} onClick={() => setStep(2)}>
+            ← Tagasi
+          </button>
         </>
       )}
     </div>
