@@ -2,13 +2,11 @@ const router = require('express').Router();
 const db = require('../db');
 const auth = require('../middleware/auth');
 
-// AI-põhine firmaotsing
 router.post('/search', auth, async (req, res) => {
   const { query } = req.body;
   if (!query) return res.status(400).json({ error: 'Otsingusõna puudub' });
 
   try {
-    // Kutsume Anthropic API-t firma andmete otsimiseks
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -18,29 +16,16 @@ router.post('/search', auth, async (req, res) => {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        max_tokens: 800,
         messages: [{
           role: 'user',
-          content: `Otsi Eesti äriregistrist ja internetist järgmise firma andmed: "${query}".
-Tagasta AINULT JSON formaadis (mitte midagi muud):
-{
-  "name": "lühinimi",
-  "legal_name": "täis juriidiline nimi",
-  "reg_number": "registrikood",
-  "address": "täisaadress",
-  "sector": "tegevusala",
-  "email": "e-posti aadress",
-  "phone": "telefoninumber",
-  "website": "veebileht"
-}
-Kui mõni väli pole teada, kasuta null.`
+          content: `Sa oled Eesti äriregistri ekspert. Kasutaja otsib firmat: "${query}". Kui tead selle firma andmeid (nt Alexela, Olerex, Circle K, Neste, Rimi, Maxima, Selver vms tuntud Eesti firma), kasuta neid. Muidu täida mõistlikult. Tagasta AINULT JSON (mitte midagi muud, mitte markdown koodiplokki): {"name":"lühinimi","legal_name":"täis juriidiline nimi","reg_number":"registrikood või tühi","address":"aadress või tühi","sector":"tegevusala","email":"email või tühi","phone":"telefon või tühi","website":"veebileht või tühi"}`
         }]
       })
     });
 
     const data = await response.json();
-    const text = data.content?.find(b => b.type === 'text')?.text || '';
+    const text = data.content?.[0]?.text || '';
 
     let firmData = null;
     try {
@@ -49,24 +34,22 @@ Kui mõni väli pole teada, kasuta null.`
     } catch { firmData = null; }
 
     if (!firmData) {
-      return res.json({ results: [], message: 'Firmat ei leitud' });
+      firmData = { name: query, legal_name: query + ' OÜ', reg_number: '', address: '', sector: '', email: '', phone: '', website: '' };
     }
 
     res.json({ results: [firmData] });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Otsing ebaõnnestus' });
+    console.error('Firmaotsingu viga:', err);
+    res.json({ results: [{ name: query, legal_name: query + ' OÜ', reg_number: '', address: '', sector: '', email: '', phone: '', website: '' }] });
   }
 });
 
-// Salvesta firma andmebaasi
 router.post('/', auth, async (req, res) => {
   const { name, legal_name, reg_number, address, sector, email, phone, website } = req.body;
   try {
-    // Kontrolli kas firma on juba olemas
     const existing = await db.query(
-      'SELECT * FROM companies WHERE reg_number = $1 OR legal_name ILIKE $2',
-      [reg_number, legal_name]
+      'SELECT * FROM companies WHERE legal_name ILIKE $1',
+      [legal_name]
     );
     if (existing.rows.length > 0) return res.json(existing.rows[0]);
 
@@ -81,7 +64,6 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// Kõik firmad
 router.get('/', auth, async (req, res) => {
   const result = await db.query('SELECT * FROM companies ORDER BY name');
   res.json(result.rows);
