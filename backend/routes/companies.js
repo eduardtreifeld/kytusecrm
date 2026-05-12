@@ -7,18 +7,18 @@ router.post('/search', auth, async (req, res) => {
   if (!query) return res.status(400).json({ error: 'Otsingusõna puudub' });
 
   try {
-    // Eesti äriregistri avalik API
-    const ariregUrl = `https://ariregister.rik.ee/est/api/autocomplete?q=${encodeURIComponent(query)}&lang=est`;
-    const ariregRes = await fetch(ariregUrl);
+    const ariregRes = await fetch(`https://ariregister.rik.ee/est/api/autocomplete?q=${encodeURIComponent(query)}&lang=est`);
     const ariregData = await ariregRes.json();
+    
+    console.log('Ariregister vastus:', JSON.stringify(ariregData).substring(0, 500));
 
-    if (ariregData?.data?.length > 0) {
-      const results = ariregData.data.slice(0, 5).map(item => ({
-        name: item.nimi,
-        legal_name: item.nimi,
-        reg_number: item.ariregistri_kood || '',
-        address: item.aadress || '',
-        sector: item.emtak_tekstiline || item.staatus || '',
+    if (ariregData?.length > 0) {
+      const results = ariregData.slice(0, 5).map(item => ({
+        name: item.name || item.nimi || item.company_name || item.arinimi || Object.values(item)[0] || query,
+        legal_name: item.name || item.nimi || item.company_name || item.arinimi || query,
+        reg_number: item.code || item.kood || item.ariregistri_kood || item.reg_code || '',
+        address: item.address || item.aadress || '',
+        sector: item.sector || item.tegevusala || item.emtak || '',
         email: '',
         phone: '',
         website: ''
@@ -26,32 +26,21 @@ router.post('/search', auth, async (req, res) => {
       return res.json({ results });
     }
 
-    // Fallback: kui äriregister ei vasta, kasuta AI-t
-    const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 500,
-        messages: [{
-          role: 'user',
-          content: `Eesti firma otsing: "${query}". Tagasta AINULT JSON, mitte midagi muud: {"name":"${query}","legal_name":"${query}","reg_number":"","address":"","sector":"","email":"","phone":"","website":""}`
-        }]
-      })
-    });
-    const aiData = await aiRes.json();
-    const text = aiData.content?.[0]?.text || '';
-    let firmData = null;
-    try {
-      const m = text.match(/\{[\s\S]*\}/);
-      if (m) firmData = JSON.parse(m[0]);
-    } catch { firmData = null; }
+    if (ariregData?.data?.length > 0) {
+      const results = ariregData.data.slice(0, 5).map(item => ({
+        name: item.name || item.nimi || query,
+        legal_name: item.name || item.nimi || query,
+        reg_number: item.code || item.ariregistri_kood || '',
+        address: item.aadress || item.address || '',
+        sector: item.emtak_tekstiline || '',
+        email: '',
+        phone: '',
+        website: ''
+      }));
+      return res.json({ results });
+    }
 
-    res.json({ results: [firmData || { name: query, legal_name: query, reg_number: '', address: '', sector: '', email: '', phone: '', website: '' }] });
+    res.json({ results: [{ name: query, legal_name: query, reg_number: '', address: '', sector: '', email: '', phone: '', website: '' }] });
 
   } catch (err) {
     console.error('Firmaotsingu viga:', err);
@@ -62,12 +51,8 @@ router.post('/search', auth, async (req, res) => {
 router.post('/', auth, async (req, res) => {
   const { name, legal_name, reg_number, address, sector, email, phone, website } = req.body;
   try {
-    const existing = await db.query(
-      'SELECT * FROM companies WHERE legal_name ILIKE $1',
-      [legal_name]
-    );
+    const existing = await db.query('SELECT * FROM companies WHERE legal_name ILIKE $1', [legal_name]);
     if (existing.rows.length > 0) return res.json(existing.rows[0]);
-
     const result = await db.query(
       'INSERT INTO companies (name,legal_name,reg_number,address,sector,email,phone,website) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
       [name, legal_name, reg_number, address, sector, email, phone, website]
