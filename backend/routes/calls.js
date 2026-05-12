@@ -2,10 +2,14 @@ const router = require('express').Router();
 const db = require('../db');
 const auth = require('../middleware/auth');
 
-// AI kommentaari korrektsioon
 router.post('/ai-correct', auth, async (req, res) => {
   const { raw_comment, company_name, contact_name } = req.body;
   if (!raw_comment) return res.status(400).json({ error: 'Kommentaar puudub' });
+
+  const today = new Date().toLocaleDateString('et-EE', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Europe/Tallinn'
+  });
+  const todayIso = new Date().toLocaleDateString('et-EE', { timeZone: 'Europe/Tallinn' });
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -21,14 +25,15 @@ router.post('/ai-correct', auth, async (req, res) => {
         messages: [{
           role: 'user',
           content: `Sa oled CRM assistent vedelkütuste müügifirmas.
+Täna on: ${today} (${todayIso})
 Firma: ${company_name || 'Tundmatu'}
 Kontakt: ${contact_name || 'Tundmatu'}
 Müügimehe kommentaar: "${raw_comment}"
 
 Tee järgmist:
 1. Kirjuta professionaalne kokkuvõte eesti keeles (3-5 lauset). Säilita kõik faktid.
-2. Kui tekstis on järelkontakti kuupäev, lisa lõppu: JÄRELTEGEVUS: DD.MM.YYYY
-3. Vasta AINULT parandatud tekstiga (+ võimalik JÄRELTEGEVUS rida).`
+2. Kui tekstis on mainitud järelkontakti aeg (ka "homme", "ülehomme", "järgmine nädal", "kuu lõpus", konkreetne kuupäev vms), arvuta täpsed kuupäevad tänase kuupäeva põhjal ja lisa lõppu: JÄRELTEGEVUS: DD.MM.YYYY
+3. Vasta AINULT parandatud tekstiga (+ võimalik JÄRELTEGEVUS rida), mitte midagi muud.`
         }]
       })
     });
@@ -38,18 +43,23 @@ Tee järgmist:
     const lines = text.split('\n');
     const followupLine = lines.find(l => l.startsWith('JÄRELTEGEVUS:'));
     const comment = lines.filter(l => !l.startsWith('JÄRELTEGEVUS:')).join('\n').trim();
-    const followup_date = followupLine
-      ? followupLine.replace('JÄRELTEGEVUS:', '').trim().split('.').reverse().join('-')
-      : null;
+
+    let followup_date = null;
+    if (followupLine) {
+      const dateStr = followupLine.replace('JÄRELTEGEVUS:', '').trim();
+      const parts = dateStr.split('.');
+      if (parts.length === 3) {
+        followup_date = `${parts[2]}-${parts[1]}-${parts[0]}`;
+      }
+    }
 
     res.json({ comment, followup_date });
   } catch (err) {
-    console.error(err);
+    console.error('AI korrektsioon viga:', err);
     res.status(500).json({ error: 'AI korrektsioon ebaõnnestus' });
   }
 });
 
-// Uue kõne salvestamine
 router.post('/', auth, async (req, res) => {
   const { company_id, contact_name, contact_phone, comment, raw_comment, followup_date, status } = req.body;
   try {
@@ -60,12 +70,11 @@ router.post('/', auth, async (req, res) => {
     );
     const call = result.rows[0];
 
-    // Lisa kalendrisündmus kui on järeltegevus
     if (followup_date) {
       await db.query(
         `INSERT INTO calendar_events (user_id,call_id,title,event_date,description)
          VALUES ($1,$2,$3,$4,$5)`,
-        [req.user.id, call.id, `Järelkõne`, followup_date, comment]
+        [req.user.id, call.id, 'Järelkõne', followup_date, comment]
       );
     }
 
@@ -76,7 +85,6 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// Kõik kõned (selle kasutaja)
 router.get('/', auth, async (req, res) => {
   try {
     const result = await db.query(
@@ -94,10 +102,8 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// Statistika avaleheküljele
 router.get('/stats', auth, async (req, res) => {
   try {
-    const today = new Date().toISOString().split('T')[0];
     const [callsToday, followups, firms] = await Promise.all([
       db.query('SELECT COUNT(*) FROM calls WHERE user_id=$1 AND call_date::date=CURRENT_DATE', [req.user.id]),
       db.query('SELECT COUNT(*) FROM calls WHERE user_id=$1 AND followup_date IS NOT NULL', [req.user.id]),
