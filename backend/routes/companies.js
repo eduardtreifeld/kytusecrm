@@ -39,30 +39,6 @@ router.post('/credit/:id', auth, async (req, res) => {
     const regNum = company.reg_number;
     const firmName = company.legal_name;
 
-    // Lae Inforegistri leht otse
-    let infoHtml = '';
-    if (regNum) {
-      try {
-        const infoRes = await fetch(`https://www.inforegister.ee/en/${regNum}`, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml',
-            'Accept-Language': 'en-US,en;q=0.9'
-          }
-        });
-        infoHtml = await infoRes.text();
-        // Võta ainult relevantne osa
-        infoHtml = infoHtml.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-                           .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-                           .replace(/<[^>]+>/g, ' ')
-                           .replace(/\s+/g, ' ')
-                           .substring(0, 6000);
-        console.log('Inforegister HTML pikkus:', infoHtml.length);
-      } catch (e) {
-        console.log('Inforegister viga:', e.message);
-      }
-    }
-
     const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -72,51 +48,56 @@ router.post('/credit/:id', auth, async (req, res) => {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-5',
-        max_tokens: 1000,
+        max_tokens: 3000,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         messages: [{
           role: 'user',
-          content: `Sa oled krediidianalüütik Eesti vedelkütuste müügifirmas. Hinda kliendi krediidiriski.
+          content: `Tee krediidikontroll Eesti firmale vedelkütuste müügiks. Otsi infot KOHUSTUSLIKULT järgmistest allikatest:
+1. https://www.inforegister.ee/en/${regNum} - käive, kasum, töötajad, krediidilimiit
+2. https://ariregister.rik.ee/est/company/${regNum} - äriregistri andmed
+3. Otsi ka: "${firmName} ${regNum} krediidiskoor käive kasum"
 
 Firma: ${firmName}
 Registrikood: ${regNum || 'teadmata'}
 
-Inforegistri andmed:
-${infoHtml || 'Andmed puuduvad'}
+Pärast otsimist tagasta AINULT see JSON objekt, mitte midagi muud, absoluutselt mitte mingit teksti väljaspool JSON-i:
+{"score":75,"limit":15000,"days":30,"summary":"Firma käive 2024 oli X eurot, kasum Y eurot. Lühike põhjendus eesti keeles."}
 
-Analüüsi järgmisi näitajaid kui need on olemas:
-- Käive ja kasum (viimased aastad)
-- Töötajate arv
-- Maksuvõlg
-- Kohtuasjad
-- Firma vanus
-- Inforegistri krediidilimiit ja maksetähtaeg
-- Finantsreiting
-
-Tagasta AINULT see JSON, mitte midagi muud:
-{"score":75,"limit":15000,"days":30,"summary":"2-3 lause eestikeelne kokkuvõte mis mainib käivet, kasumit ja põhjendab skoori"}
-
-Skoori juhised:
-- 80-100: tugev firma, pikk ajalugu, kasulik, maksuvõlg puudub
-- 50-79: keskmise riskiga, mõned puudujäägid
-- 1-49: kõrge risk, ettemaks soovitatav
-- limit: eurodes, lähtudes Inforegistri soovitusest või oma hinnangust
-- days: 0=ettemaks, 7, 14, 21, 30, 45, 60`
+Reeglid:
+- score 1-100 (80+ roheline, 50-79 kollane, alla 50 punane)
+- limit eurodes (0 kuni 50000)  
+- days maksetähtaeg (0=ettemaks, 7, 14, 21, 30, 45, 60)
+- summary PEAB mainima käivet ja kasumit kui need on leitavad
+- Kui andmed puuduvad täielikult: score=35, limit=500, days=7, summary="Finantsandmed puuduvad, soovitatav ettemaks."
+- KEELATUD: tagastada viga, selgitust, markdown-i või muud teksti peale JSON-i`
         }]
       })
     });
 
     const aiData = await aiRes.json();
-    const text = (aiData.content?.[0]?.text || '').replace(/```json|```/g, '').trim();
-    console.log('Krediidi AI tekst:', text.substring(0, 300));
+    console.log('Krediidi raw:', JSON.stringify(aiData).substring(0, 800));
 
-    let credit = { score: 45, limit: 500, days: 7, summary: 'Andmeid ei leitud, soovitatav ettemaks.' };
+    // Otsi tekstiblokk — web_search puhul võib olla mitu content blokki
+    let text = '';
+    if (aiData.content) {
+      for (const block of aiData.content) {
+        if (block.type === 'text' && block.text) {
+          text = block.text;
+          break;
+        }
+      }
+    }
+    text = text.replace(/```json|```/g, '').trim();
+    console.log('Krediidi tekst:', text.substring(0, 400));
+
+    let credit = { score: 35, limit: 500, days: 7, summary: 'Finantsandmed puuduvad, soovitatav ettemaks.' };
     try {
-      const m = text.match(/\{[\s\S]*?\}/);
+      const m = text.match(/\{[^{}]*"score"[^{}]*\}/);
       if (m) {
         const parsed = JSON.parse(m[0]);
-        if (parsed.score) {
+        if (typeof parsed.score === 'number') {
           credit = {
-            score: parsed.score,
+            score: Math.min(100, Math.max(1, parsed.score)),
             limit: parsed.limit || 0,
             days: parsed.days || 7,
             summary: parsed.summary || 'Hinnang puudub.'
@@ -124,7 +105,7 @@ Skoori juhised:
         }
       }
     } catch (e) {
-      console.log('JSON parse viga:', e.message);
+      console.log('JSON parse viga:', e.message, 'Tekst oli:', text.substring(0, 200));
     }
 
     await db.query(
