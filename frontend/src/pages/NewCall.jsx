@@ -5,7 +5,6 @@ export default function NewCall({ onSaved, onCancel }) {
   const [step, setStep] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);
-  const [firmResults, setFirmResults] = useState([]);
   const [firm, setFirm] = useState(null);
   const [savedCompany, setSavedCompany] = useState(null);
   const [contactName, setContactName] = useState('');
@@ -15,28 +14,29 @@ export default function NewCall({ onSaved, onCancel }) {
   const [aiComment, setAiComment] = useState('');
   const [followupDate, setFollowupDate] = useState('');
   const [saving, setSaving] = useState(false);
+  const [searchError, setSearchError] = useState('');
   const aiRef = useRef();
 
   async function searchFirm() {
     if (!searchQuery.trim()) return;
     setSearching(true);
-    setFirmResults([]);
     setFirm(null);
-    const res = await api.searchCompany(searchQuery);
-    setSearching(false);
-    if (res?.results?.length > 0) {
-      setFirmResults(res.results);
+    setSearchError('');
+    try {
+      const res = await api.searchCompany(searchQuery);
+      if (res?.results?.length > 0) {
+        setFirm(res.results[0]);
+      } else {
+        setSearchError('Firmat ei leitud, proovi teise nimega.');
+      }
+    } catch (e) {
+      setSearchError('Ühenduse viga, proovi uuesti.');
     }
-  }
-
-  function selectFirm(f) {
-    setFirm(f);
-    setFirmResults([]);
+    setSearching(false);
   }
 
   async function goStep2() {
     if (!firm) return;
-    // Salvesta firma andmebaasi
     const saved = await api.saveCompany(firm);
     setSavedCompany(saved);
     setStep(2);
@@ -99,12 +99,9 @@ export default function NewCall({ onSaved, onCancel }) {
             </div>
           )}
 
-          {firmResults.map((f, i) => (
-            <div className="firm-result" key={i} onClick={() => selectFirm(f)}>
-              <div className="firm-result-name">{f.legal_name || f.name}</div>
-              <div className="firm-result-sub">{f.sector} · {f.address}</div>
-            </div>
-          ))}
+          {searchError && (
+            <div style={{ fontSize: 12, color: '#c0392b', marginBottom: 12 }}>{searchError}</div>
+          )}
 
           {firm && (
             <div className="card">
@@ -170,7 +167,7 @@ export default function NewCall({ onSaved, onCancel }) {
             <textarea
               value={rawComment}
               onChange={e => setRawComment(e.target.value)}
-              placeholder="nt. huvitatud diisel 50k liitrit, räägime uuesti 20 juunil, otsustab nädala pärast..."
+              placeholder="nt. huvitatud diisel 50k liitrit, räägime uuesti 20 juunil..."
             />
           </div>
 
@@ -183,12 +180,7 @@ export default function NewCall({ onSaved, onCancel }) {
           {aiComment && (
             <>
               <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>AI korrigeeritud tekst (saad muuta):</div>
-              <div
-                className="ai-box"
-                contentEditable
-                suppressContentEditableWarning
-                ref={aiRef}
-              >
+              <div className="ai-box" contentEditable suppressContentEditableWarning ref={aiRef}>
                 {aiComment}
               </div>
 
