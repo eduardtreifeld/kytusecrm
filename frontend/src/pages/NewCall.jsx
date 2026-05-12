@@ -5,6 +5,7 @@ export default function NewCall({ onSaved, onCancel }) {
   const [step, setStep] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);
+  const [firmResults, setFirmResults] = useState([]);
   const [firm, setFirm] = useState(null);
   const [savedCompany, setSavedCompany] = useState(null);
   const [contactName, setContactName] = useState('');
@@ -21,18 +22,24 @@ export default function NewCall({ onSaved, onCancel }) {
     if (!searchQuery.trim()) return;
     setSearching(true);
     setFirm(null);
+    setFirmResults([]);
     setSearchError('');
     try {
       const res = await api.searchCompany(searchQuery);
       if (res?.results?.length > 0) {
-        setFirm(res.results[0]);
+        setFirmResults(res.results);
       } else {
-        setSearchError('Firmat ei leitud, proovi teise nimega.');
+        setSearchError('Firmat ei leitud.');
       }
     } catch (e) {
       setSearchError('Ühenduse viga, proovi uuesti.');
     }
     setSearching(false);
+  }
+
+  function selectFirm(f) {
+    setFirm(f);
+    setFirmResults([]);
   }
 
   async function goStep2() {
@@ -84,7 +91,7 @@ export default function NewCall({ onSaved, onCancel }) {
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && searchFirm()}
-                placeholder="nt. Alexela, Circle K, Olerex..."
+                placeholder="nt. Terminal, Alexela, Olerex..."
                 style={{ flex: 1 }}
               />
               <button className="btn btn-sm" onClick={searchFirm} disabled={searching}>
@@ -95,7 +102,7 @@ export default function NewCall({ onSaved, onCancel }) {
 
           {searching && (
             <div style={{ fontSize: 12, color: '#888', marginBottom: 12 }}>
-              <span className="spinner" /> AI otsib firma andmeid...
+              <span className="spinner" /> Otsib äriregistrist...
             </div>
           )}
 
@@ -103,15 +110,26 @@ export default function NewCall({ onSaved, onCancel }) {
             <div style={{ fontSize: 12, color: '#c0392b', marginBottom: 12 }}>{searchError}</div>
           )}
 
+          {firmResults.length > 0 && !firm && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 12, color: '#888', marginBottom: 6 }}>Vali firma:</div>
+              {firmResults.map((f, i) => (
+                <div key={i} className="firm-result" onClick={() => selectFirm(f)}>
+                  <div className="firm-result-name">{f.legal_name}</div>
+                  <div className="firm-result-sub">{f.reg_number && `Reg: ${f.reg_number}`} {f.address && `· ${f.address}`}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
           {firm && (
             <div className="card">
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                <div style={{ fontWeight: 600 }}>{firm.name}</div>
-                <span className="badge badge-green">Leitud</span>
+                <div style={{ fontWeight: 600 }}>{firm.legal_name}</div>
+                <span className="badge badge-green">Valitud</span>
               </div>
               <table className="firm-table">
                 {[
-                  ['Jur. nimi', firm.legal_name],
                   ['Reg. nr', firm.reg_number],
                   ['Aadress', firm.address],
                   ['Tegevusala', firm.sector],
@@ -121,9 +139,12 @@ export default function NewCall({ onSaved, onCancel }) {
                   <tr key={label}><td>{label}</td><td>{value}</td></tr>
                 ) : null)}
               </table>
-              <button className="btn btn-primary btn-block" style={{ marginTop: 12 }} onClick={goStep2}>
-                📞 Jätka kõne lisamisega →
-              </button>
+              <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                <button className="btn btn-sm" onClick={() => { setFirm(null); setFirmResults([]); }}>← Muuda</button>
+                <button className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }} onClick={goStep2}>
+                  📞 Jätka kõne lisamisega →
+                </button>
+              </div>
             </div>
           )}
 
@@ -161,7 +182,6 @@ export default function NewCall({ onSaved, onCancel }) {
           <div className="card" style={{ marginBottom: 14, fontSize: 13 }}>
             <strong>{firm?.legal_name}</strong> · {contactName} · {contactPhone}
           </div>
-
           <div className="field">
             <label>Sinu lühikommentaar</label>
             <textarea
@@ -170,31 +190,26 @@ export default function NewCall({ onSaved, onCancel }) {
               placeholder="nt. huvitatud diisel 50k liitrit, räägime uuesti 20 juunil..."
             />
           </div>
-
           <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
             <button className="btn" style={{ flex: 1, justifyContent: 'center' }} onClick={aiCorrect} disabled={correcting}>
               {correcting ? <><span className="spinner" />AI töötab...</> : '✨ AI korrektsioon'}
             </button>
           </div>
-
           {aiComment && (
             <>
               <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>AI korrigeeritud tekst (saad muuta):</div>
               <div className="ai-box" contentEditable suppressContentEditableWarning ref={aiRef}>
                 {aiComment}
               </div>
-
               {followupDate && (
                 <div className="followup-alert">
                   📅 <strong>Järeltegevus tuvastatud:</strong> {new Date(followupDate).toLocaleDateString('et-EE')} — lisatakse kalendrisse
                 </div>
               )}
-
               <div className="field" style={{ marginTop: 10 }}>
                 <label>Järelkõne kuupäev (muuda vajadusel)</label>
                 <input type="date" value={followupDate} onChange={e => setFollowupDate(e.target.value)} />
               </div>
-
               <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                 <button className="btn" onClick={aiCorrect}>🔄 Uuesti</button>
                 <button className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }} onClick={saveCall} disabled={saving}>
@@ -203,7 +218,6 @@ export default function NewCall({ onSaved, onCancel }) {
               </div>
             </>
           )}
-
           <button className="btn btn-block" style={{ marginTop: 10 }} onClick={() => setStep(2)}>← Tagasi</button>
         </>
       )}
