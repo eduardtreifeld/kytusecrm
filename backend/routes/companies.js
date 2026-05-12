@@ -72,37 +72,33 @@ Tegevusala: ${company.sector || 'teadmata'}
 
 ${infoData ? `Avalik info firmast:\n${infoData}` : 'Avalikku finantsinfot ei leitud.'}
 
-Anna hinnang AINULT selles JSON formaadis (mitte midagi muud):
-{
-  "score": 65,
-  "limit": 5000,
-  "days": 14,
-  "summary": "Lühike 1-2 lause põhjendus eesti keeles"
-}
+Tagasta AINULT see JSON, mitte midagi muud, mitte markdown koodiplokki, mitte backtick'e:
+{"score":65,"limit":5000,"days":14,"summary":"Lühike põhjendus eesti keeles"}
 
-Juhised:
+Juhised skoori arvutamiseks:
 - score: 1-100 (100=väga usaldusväärne, 1=väga riskantne)
 - limit: soovitatav krediidilimiit eurodes (0-50000)
-- days: soovitatav maksetähtaeg päevades (0, 7, 14, 21, 30, 45, 60)
-- Kui firma on kahjumlik või madal reputatsioon: score alla 50, limit alla 2000, days 7
-- Kui firma on kasumlik ja pikaajaline: score üle 70, limit 5000-20000, days 30`
+- days: maksetähtaeg päevades (0, 7, 14, 21, 30, 45, 60)
+- Kahjumlik või madal reputatsioon: score alla 50, limit alla 2000, days 7
+- Kasumlik ja pikaajaline: score üle 70, limit 5000-20000, days 30`
         }]
       })
     });
 
     const aiData = await aiRes.json();
-    const text = aiData.content?.[0]?.text || '';
+    const text = (aiData.content?.[0]?.text || '').replace(/```json|```/g, '').trim();
     console.log('Krediidi AI vastus:', text);
 
     let credit = { score: 50, limit: 2000, days: 14, summary: 'Automaatne hinnang puudub.' };
     try {
       const m = text.match(/\{[\s\S]*\}/);
       if (m) credit = JSON.parse(m[0]);
-    } catch (e) { console.log('JSON parse viga:', e.message); }
+    } catch (e) {
+      console.log('JSON parse viga:', e.message);
+    }
 
     await db.query(
-      `UPDATE companies SET credit_score=$1, credit_limit=$2, credit_days=$3, credit_summary=$4, credit_checked_at=NOW()
-       WHERE id=$5`,
+      `UPDATE companies SET credit_score=$1, credit_limit=$2, credit_days=$3, credit_summary=$4, credit_checked_at=NOW() WHERE id=$5`,
       [credit.score, credit.limit, credit.days, credit.summary, id]
     );
 
