@@ -37,20 +37,9 @@ router.post('/credit/:id', auth, async (req, res) => {
     if (!company) return res.status(404).json({ error: 'Firma ei leitud' });
 
     const regNum = company.reg_number;
-    let infoData = null;
+    const firmName = company.legal_name;
 
-    if (regNum) {
-      try {
-        const infoRes = await fetch(`https://www.inforegister.ee/en/${regNum}`, {
-          headers: { 'User-Agent': 'Mozilla/5.0' }
-        });
-        const html = await infoRes.text();
-        infoData = html.substring(0, 8000);
-      } catch (e) {
-        console.log('Inforegister fetch viga:', e.message);
-      }
-    }
-
+    // Kasutame web_search tööriista — AI otsib ise internetist
     const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -60,39 +49,61 @@ router.post('/credit/:id', auth, async (req, res) => {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-5',
-        max_tokens: 500,
+        max_tokens: 2000,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         messages: [{
           role: 'user',
-          content: `Sa oled krediidianalüütik. Hinda Eesti firma krediidiriski vedelkütuste müügiks.
+          content: `Tee põhjalik krediidikontroll Eesti firmale vedelkütuste müügiks.
 
-Firma: ${company.legal_name}
+Firma: ${firmName}
 Registrikood: ${regNum || 'teadmata'}
-Aadress: ${company.address || 'teadmata'}
-Tegevusala: ${company.sector || 'teadmata'}
 
-${infoData ? `Avalik info firmast:\n${infoData}` : 'Avalikku finantsinfot ei leitud.'}
+Otsi infot järgmistest allikatest:
+1. inforegister.ee - finantsandmed, krediidiskoor, käive, kasum
+2. ariregister.rik.ee - äriregistri andmed, asutamiskuupäev, staatus
+3. emta.ee või maksuamet - maksuvõlad
+4. äripäev, storybook, regia - lisainfo
 
-Tagasta AINULT see JSON, mitte midagi muud, mitte markdown koodiplokki, mitte backtick'e:
-{"score":65,"limit":5000,"days":14,"summary":"Lühike põhjendus eesti keeles"}
-
-Juhised skoori arvutamiseks:
-- score: 1-100 (100=väga usaldusväärne, 1=väga riskantne)
-- limit: soovitatav krediidilimiit eurodes (0-50000)
-- days: maksetähtaeg päevades (0, 7, 14, 21, 30, 45, 60)
-- Kahjumlik või madal reputatsioon: score alla 50, limit alla 2000, days 7
-- Kasumlik ja pikaajaline: score üle 70, limit 5000-20000, days 30`
+Seejärel tagasta AINULT see JSON (mitte midagi muud, mitte markdown):
+{
+  "score": 75,
+  "limit": 15000,
+  "days": 30,
+  "summary": "2-3 lause kokkuvõte eesti keeles mis põhjendab skoori",
+  "details": {
+    "age_years": 10,
+    "turnover": 1000000,
+    "profit": 50000,
+    "employees": 10,
+    "tax_debt": false,
+    "court_cases": 0,
+    "credit_rating": "usaldusväärne"
+  }
+}`
         }]
       })
     });
 
     const aiData = await aiRes.json();
-    const text = (aiData.content?.[0]?.text || '').replace(/```json|```/g, '').trim();
-    console.log('Krediidi AI vastus:', text);
+    console.log('Krediidi AI raw:', JSON.stringify(aiData).substring(0, 1000));
 
-    let credit = { score: 50, limit: 2000, days: 14, summary: 'Automaatne hinnang puudub.' };
+    // Leia tekstiblokk vastusest
+    const textBlock = aiData.content?.find(b => b.type === 'text');
+    const text = (textBlock?.text || '').replace(/```json|```/g, '').trim();
+    console.log('Krediidi AI tekst:', text);
+
+    let credit = { score: 50, limit: 2000, days: 14, summary: 'Andmeid ei leitud.' };
     try {
       const m = text.match(/\{[\s\S]*\}/);
-      if (m) credit = JSON.parse(m[0]);
+      if (m) {
+        const parsed = JSON.parse(m[0]);
+        credit = {
+          score: parsed.score || 50,
+          limit: parsed.limit || 2000,
+          days: parsed.days || 14,
+          summary: parsed.summary || 'Andmeid ei leitud.'
+        };
+      }
     } catch (e) {
       console.log('JSON parse viga:', e.message);
     }
