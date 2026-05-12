@@ -7,7 +7,27 @@ router.post('/search', auth, async (req, res) => {
   if (!query) return res.status(400).json({ error: 'Otsingusõna puudub' });
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    // Eesti äriregistri avalik API
+    const ariregUrl = `https://ariregister.rik.ee/est/api/autocomplete?q=${encodeURIComponent(query)}&lang=est`;
+    const ariregRes = await fetch(ariregUrl);
+    const ariregData = await ariregRes.json();
+
+    if (ariregData?.data?.length > 0) {
+      const results = ariregData.data.slice(0, 5).map(item => ({
+        name: item.nimi,
+        legal_name: item.nimi,
+        reg_number: item.ariregistri_kood || '',
+        address: item.aadress || '',
+        sector: item.emtak_tekstiline || item.staatus || '',
+        email: '',
+        phone: '',
+        website: ''
+      }));
+      return res.json({ results });
+    }
+
+    // Fallback: kui äriregister ei vasta, kasuta AI-t
+    const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -16,31 +36,26 @@ router.post('/search', auth, async (req, res) => {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 800,
+        max_tokens: 500,
         messages: [{
           role: 'user',
-          content: `Sa oled Eesti äriregistri ekspert. Kasutaja otsib firmat: "${query}". Kui tead selle firma andmeid (nt Alexela, Olerex, Circle K, Neste, Rimi, Maxima, Selver vms tuntud Eesti firma), kasuta neid. Muidu täida mõistlikult. Tagasta AINULT JSON (mitte midagi muud, mitte markdown koodiplokki): {"name":"lühinimi","legal_name":"täis juriidiline nimi","reg_number":"registrikood või tühi","address":"aadress või tühi","sector":"tegevusala","email":"email või tühi","phone":"telefon või tühi","website":"veebileht või tühi"}`
+          content: `Eesti firma otsing: "${query}". Tagasta AINULT JSON, mitte midagi muud: {"name":"${query}","legal_name":"${query}","reg_number":"","address":"","sector":"","email":"","phone":"","website":""}`
         }]
       })
     });
-
-    const data = await response.json();
-    const text = data.content?.[0]?.text || '';
-
+    const aiData = await aiRes.json();
+    const text = aiData.content?.[0]?.text || '';
     let firmData = null;
     try {
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (jsonMatch) firmData = JSON.parse(jsonMatch[0]);
+      const m = text.match(/\{[\s\S]*\}/);
+      if (m) firmData = JSON.parse(m[0]);
     } catch { firmData = null; }
 
-    if (!firmData) {
-      firmData = { name: query, legal_name: query + ' OÜ', reg_number: '', address: '', sector: '', email: '', phone: '', website: '' };
-    }
+    res.json({ results: [firmData || { name: query, legal_name: query, reg_number: '', address: '', sector: '', email: '', phone: '', website: '' }] });
 
-    res.json({ results: [firmData] });
   } catch (err) {
     console.error('Firmaotsingu viga:', err);
-    res.json({ results: [{ name: query, legal_name: query + ' OÜ', reg_number: '', address: '', sector: '', email: '', phone: '', website: '' }] });
+    res.json({ results: [{ name: query, legal_name: query, reg_number: '', address: '', sector: '', email: '', phone: '', website: '' }] });
   }
 });
 
