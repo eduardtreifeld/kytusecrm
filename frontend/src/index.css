@@ -152,29 +152,107 @@ body {
   color: #e8f0f8;
 }
 
-[data-theme="dark"] .calls-table th {
+[data-theme="dark"] .app {
   background: #111b27;
+}
+
+[data-theme="dark"] .tabs {
+  background: #1a2332;
+  border-bottom-color: #2d4060;
+}
+
+[data-theme="dark"] .tab {
+  color: #8aaccc;
+}
+
+[data-theme="dark"] .tab.active {
+  color: var(--teal-light);
+  border-bottom-color: var(--teal-light);
+}
+
+[data-theme="dark"] .stats {
+  filter: brightness(1.1);
+}
+
+[data-theme="dark"] .section-title {
+  color: #e8f0f8;
+  border-bottom-color: var(--teal-dark);
+}
+
+[data-theme="dark"] .calls-table th {
+  background: #0d1520;
+  color: var(--teal-light);
+}
+
+[data-theme="dark"] .calls-table td {
+  border-bottom-color: #2d4060;
+  color: #e8f0f8;
 }
 
 [data-theme="dark"] .calls-table tr:hover td {
   background: #1a2332;
 }
 
-[data-theme="dark"] .modal {
+[data-theme="dark"] .badge-blue {
+  background: #1a3a5c;
+  color: #55CED6;
+}
+
+[data-theme="dark"] .badge-amber {
+  background: #3a2e00;
+  color: #FFD740;
+}
+
+[data-theme="dark"] .badge-green {
+  background: #0a3020;
+  color: #00C75B;
+}
+
+[data-theme="dark"] .badge-red {
+  background: #3a0a0a;
+  color: #ff6b6b;
+}
+
+[data-theme="dark"] .btn {
   background: #243040;
   color: #e8f0f8;
+  border-color: #2d4060;
+}
+
+[data-theme="dark"] .btn:hover {
+  background: #1a2332;
+}
+
+[data-theme="dark"] .btn-primary {
+  background: var(--teal-dark);
+  color: #fff;
+  border-color: var(--teal-dark);
+}
+
+[data-theme="dark"] .modal {
+  background: #1e2d3d;
+  color: #e8f0f8;
+}
+
+[data-theme="dark"] .modal-title {
+  color: var(--teal-light);
+}
+
+[data-theme="dark"] .field label {
+  color: var(--teal-light);
 }
 
 [data-theme="dark"] .field input,
 [data-theme="dark"] .field textarea,
 [data-theme="dark"] .field select {
-  background: #1a2332;
+  background: #111b27;
   color: #e8f0f8;
   border-color: #2d4060;
 }
 
 [data-theme="dark"] .firm-result {
-  background: #243040;
+  background: #1e2d3d;
+  border-color: #2d4060;
 }
 
 [data-theme="dark"] .firm-result:hover {
@@ -182,6 +260,27 @@ body {
 }
 
 [data-theme="dark"] .ai-box {
-  background: #1a3040;
+  background: #0d2030;
   border-color: #2d6080;
+  color: #e8f0f8;
+}
+
+[data-theme="dark"] .followup-alert {
+  background: #2a2000;
+  border-color: #FFD740;
+  color: #FFD740;
+}
+
+[data-theme="dark"] .step-header {
+  background: #1a2332;
+  color: var(--teal-light);
+}
+
+[data-theme="dark"] .card {
+  background: #1e2d3d;
+  border-color: #2d4060;
+}
+
+[data-theme="dark"] .nav-user {
+  color: var(--teal-light);
 }
