@@ -36,12 +36,16 @@ export const api = {
   searchCompany: (query) => req('POST', '/companies/search', { query }),
   saveCompany: (data) => req('POST', '/companies', data),
   getCompanies: () => req('GET', '/companies'),
+  checkCredit: (companyId) => req('POST', `/companies/credit/${companyId}`),
 
   aiCorrect: (raw_comment, company_name, contact_name) =>
     req('POST', '/calls/ai-correct', { raw_comment, company_name, contact_name }),
   saveCall: (data) => req('POST', '/calls', data),
   getCalls: () => req('GET', '/calls'),
+  getCallsByCompany: (companyId) => req('GET', `/calls/company/${companyId}`),
   getStats: () => req('GET', '/calls/stats'),
+  updateCall: (id, data) => req('PUT', `/calls/${id}`, data),
+  deleteCall: (id) => req('DELETE', `/calls/${id}`),
 
   getCalendar: (month, year) => req('GET', `/calendar?month=${month}&year=${year}`),
 };
