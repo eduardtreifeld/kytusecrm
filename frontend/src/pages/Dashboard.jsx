@@ -68,6 +68,116 @@ function CreditCell({ call, onCreditDone }) {
   );
 }
 
+function CardOrderModal({ call, onClose }) {
+  const [cardType, setCardType] = useState(null);
+  const [comment, setComment] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  async function handleSave() {
+    if (!cardType || !comment.trim()) return;
+    setSaving(true);
+    try {
+      await api.saveCall({
+        company_id: call.company_id,
+        contact_name: call.contact_name,
+        contact_phone: call.contact_phone,
+        comment: `KAARDI TELLIMUS [${cardType}]: ${comment}`,
+        raw_comment: comment,
+        followup_date: null,
+        status: 'logged'
+      });
+      setSaved(true);
+      setTimeout(() => onClose(), 1500);
+    } catch (e) {
+      alert('Salvestamine ebaõnnestus');
+    }
+    setSaving(false);
+  }
+
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={{ maxWidth: 480 }}>
+        <div className="modal-title">
+          <span>Telli kaart — {call.legal_name || call.company_name}</span>
+          <button className="btn btn-sm" onClick={onClose}>✕</button>
+        </div>
+
+        {saved ? (
+          <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--teal-dark)' }}>
+            <div style={{ fontSize: 40, marginBottom: 8 }}>✅</div>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>Kaardi tellimus salvestatud!</div>
+          </div>
+        ) : (
+          <>
+            <div style={{ fontSize: 12, color: '#888', marginBottom: 16 }}>Vali kaardi tüüp:</div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+              <div
+                onClick={() => setCardType('SOODUSKAART')}
+                style={{
+                  border: `2px solid ${cardType === 'SOODUSKAART' ? 'var(--teal-dark)' : 'var(--border)'}`,
+                  borderRadius: 8, padding: '16px 12px', cursor: 'pointer', textAlign: 'center',
+                  background: cardType === 'SOODUSKAART' ? 'var(--bg)' : 'var(--white)',
+                  transition: 'all 0.15s'
+                }}
+              >
+                <div style={{ fontSize: 28, marginBottom: 6 }}>🎫</div>
+                <div style={{ fontWeight: 700, fontSize: 13, color: cardType === 'SOODUSKAART' ? 'var(--teal-dark)' : 'var(--dark)', textTransform: 'uppercase' }}>Sooduskaart</div>
+                <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>Allahindlused tanklates</div>
+              </div>
+
+              <div
+                onClick={() => setCardType('MAKSEKAART')}
+                style={{
+                  border: `2px solid ${cardType === 'MAKSEKAART' ? 'var(--teal-dark)' : 'var(--border)'}`,
+                  borderRadius: 8, padding: '16px 12px', cursor: 'pointer', textAlign: 'center',
+                  background: cardType === 'MAKSEKAART' ? 'var(--bg)' : 'var(--white)',
+                  transition: 'all 0.15s'
+                }}
+              >
+                <div style={{ fontSize: 28, marginBottom: 6 }}>💳</div>
+                <div style={{ fontWeight: 700, fontSize: 13, color: cardType === 'MAKSEKAART' ? 'var(--teal-dark)' : 'var(--dark)', textTransform: 'uppercase' }}>Maksekaart</div>
+                <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>Krediit ja arveldus</div>
+              </div>
+            </div>
+
+            {cardType && (
+              <>
+                <div style={{ background: 'var(--bg)', borderRadius: 6, padding: '8px 12px', marginBottom: 14, fontSize: 12, color: 'var(--teal-dark)', fontWeight: 600 }}>
+                  Valitud: {cardType === 'SOODUSKAART' ? '🎫 Sooduskaart' : '💳 Maksekaart'}
+                </div>
+                <div className="field">
+                  <label>Kommentaar (kaartide arv, kontakt, lisainfo)</label>
+                  <textarea
+                    value={comment}
+                    onChange={e => setComment(e.target.value)}
+                    placeholder={cardType === 'SOODUSKAART'
+                      ? 'nt. 2 sooduskaarti, kontakt Mart Tamm, saata aadressile...'
+                      : 'nt. 3 maksekaart, krediidilimiit 5000€, kontakt Mart Tamm...'}
+                    rows={4}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="btn" onClick={onClose}>Tühista</button>
+                  <button
+                    className="btn btn-primary"
+                    style={{ flex: 1, justifyContent: 'center' }}
+                    onClick={handleSave}
+                    disabled={saving || !comment.trim()}
+                  >
+                    {saving ? <><span className="spinner" />Salvestab...</> : '📨 Saada tellimus'}
+                  </button>
+                </div>
+              </>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function CompanyModal({ call, onClose, onSaved }) {
   const [history, setHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
@@ -130,8 +240,6 @@ function CompanyModal({ call, onClose, onSaved }) {
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal" style={{ maxWidth: 700 }}>
-
-        {/* Päis */}
         <div className="modal-title">
           <span>{call.legal_name || call.company_name}</span>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -140,7 +248,6 @@ function CompanyModal({ call, onClose, onSaved }) {
           </div>
         </div>
 
-        {/* Firma info */}
         <div style={{ background: 'var(--bg)', borderRadius: 8, padding: '12px 14px', marginBottom: 16, fontSize: 13 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 16px' }}>
             <div><span style={{ color: 'var(--teal-dark)', fontWeight: 700 }}>Reg. kood: </span>{call.reg_number || '—'}</div>
@@ -155,7 +262,6 @@ function CompanyModal({ call, onClose, onSaved }) {
           )}
         </div>
 
-        {/* Kontaktide ajalugu */}
         <div style={{ marginBottom: 20 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--teal-dark)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10, borderBottom: '2px solid var(--teal-dark)', paddingBottom: 6 }}>
             Kontaktide ajalugu ({history.length})
@@ -188,7 +294,6 @@ function CompanyModal({ call, onClose, onSaved }) {
           )}
         </div>
 
-        {/* Uus kontakt sektsioon */}
         <div ref={newContactRef} style={{ borderTop: '2px solid var(--teal-dark)', paddingTop: 16 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--teal-dark)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12 }}>
             + Lisa uus kontakt
@@ -243,6 +348,7 @@ export default function Dashboard({ onNewCall }) {
   const [stats, setStats] = useState({ calls_today: 0, followups: 0, firms: 0 });
   const [loading, setLoading] = useState(true);
   const [companyCall, setCompanyCall] = useState(null);
+  const [cardCall, setCardCall] = useState(null);
 
   function loadData() {
     Promise.all([api.getCalls(), api.getStats()]).then(([c, s]) => {
@@ -290,7 +396,7 @@ export default function Dashboard({ onNewCall }) {
                 <th>Krediit</th>
                 <th>Kommentaar</th>
                 <th>Staatus</th>
-                <th>Tegevus</th>
+                <th>Tegevused</th>
               </tr>
             </thead>
             <tbody>
@@ -319,10 +425,16 @@ export default function Dashboard({ onNewCall }) {
                   </td>
                   <td>{statusBadge(call.status, call.followup_date)}</td>
                   <td onClick={e => e.stopPropagation()}>
-                    <button className="btn btn-sm btn-primary" style={{ whiteSpace: 'nowrap', fontSize: 11 }}
-                      onClick={() => setCompanyCall(call)}>
-                      📞 Uus kontakt
-                    </button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <button className="btn btn-sm btn-primary" style={{ whiteSpace: 'nowrap', fontSize: 11 }}
+                        onClick={() => setCompanyCall(call)}>
+                        📞 Uus kontakt
+                      </button>
+                      <button className="btn btn-sm" style={{ whiteSpace: 'nowrap', fontSize: 11, borderColor: 'var(--teal-dark)', color: 'var(--teal-dark)' }}
+                        onClick={() => setCardCall(call)}>
+                        💳 Telli kaart
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -336,6 +448,13 @@ export default function Dashboard({ onNewCall }) {
           call={companyCall}
           onClose={() => setCompanyCall(null)}
           onSaved={() => { setCompanyCall(null); loadData(); }}
+        />
+      )}
+
+      {cardCall && (
+        <CardOrderModal
+          call={cardCall}
+          onClose={() => { setCardCall(null); loadData(); }}
         />
       )}
     </div>
