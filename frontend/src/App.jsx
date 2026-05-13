@@ -10,6 +10,12 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem('crm_user')); } catch { return null; }
   });
   const [tab, setTab] = useState('dashboard');
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('crm_theme') === 'dark');
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+    localStorage.setItem('crm_theme', darkMode ? 'dark' : 'light');
+  }, [darkMode]);
 
   function handleLogin(u) {
     setUser(u);
@@ -31,10 +37,21 @@ export default function App() {
   return (
     <div className="app">
       <div className="nav">
-        <div className="nav-logo">   <img src="/logo.png" alt="Terminal" style={{ height: 28, width: 28, objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />   TERMINAL CRM </div>
+        <div className="nav-logo">
+          <img src="/logo.png" alt="Terminal" style={{ height: 28, width: 28, objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
+          TERMINAL CRM
+        </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span className="nav-user">{user.full_name}</span>
-          <button className="btn btn-sm" onClick={handleLogout}>Välju</button>
+          <button
+            className="btn btn-sm"
+            style={{ fontSize: 16, padding: '5px 10px', background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: '#fff' }}
+            onClick={() => setDarkMode(d => !d)}
+            title={darkMode ? 'Hele teema' : 'Tume teema'}
+          >
+            {darkMode ? '☀️' : '🌙'}
+          </button>
+          <button className="btn btn-sm" style={{ color: '#fff', background: 'transparent', border: '1px solid rgba(255,255,255,0.2)' }} onClick={handleLogout}>Välju</button>
         </div>
       </div>
 
