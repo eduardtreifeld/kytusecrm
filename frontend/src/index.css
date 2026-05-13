@@ -175,6 +175,24 @@ body {
   background: #0d1520;
   color: var(--teal-light);
 }
+[data-theme="dark"] * {
+  color: inherit;
+}
+
+[data-theme="dark"] [style*="color: #444"],
+[data-theme="dark"] [style*="color:#444"],
+[data-theme="dark"] [style*="color: #555"],
+[data-theme="dark"] [style*="color:#555"],
+[data-theme="dark"] [style*="color: #666"],
+[data-theme="dark"] [style*="color:#666"],
+[data-theme="dark"] [style*="color: #888"],
+[data-theme="dark"] [style*="color:#888"],
+[data-theme="dark"] [style*="color: rgb(68"],
+[data-theme="dark"] [style*="color: rgb(85"],
+[data-theme="dark"] [style*="color: rgb(102"],
+[data-theme="dark"] [style*="color: rgb(136"] {
+  color: #c8dff0 !important;
+}
 
 [data-theme="dark"] .calls-table td {
   border-bottom-color: #2d4060;
