@@ -354,7 +354,7 @@ export default function Dashboard({ onNewCall }) {
             </thead>
             <tbody>
               {calls.map(call => (
-                <tr key={call.id} onClick={() => setSelectedCall(call)}>
+                <tr key={call.id} onClick={() => setCompanyCall(call)}>
                   <td className="nowrap">{formatDate(call.call_date)}</td>
                   <td className="nowrap" style={{ color: call.followup_date ? '#7a6000' : '#ccc', fontWeight: call.followup_date ? 700 : 400 }}>
                     {formatDate(call.followup_date)}
