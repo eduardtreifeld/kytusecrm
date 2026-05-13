@@ -39,7 +39,6 @@ Tee järgmist:
     });
 
     const data = await response.json();
-    console.log('Anthropic vastus:', JSON.stringify(data).substring(0, 500));
     const text = data.content?.[0]?.text || '';
     const lines = text.split('\n');
     const followupLine = lines.find(l => l.startsWith('JÄRELTEGEVUS:'));
@@ -62,12 +61,12 @@ Tee järgmist:
 });
 
 router.post('/', auth, async (req, res) => {
-  const { company_id, contact_name, contact_phone, comment, raw_comment, followup_date, status } = req.body;
+  const { company_id, contact_name, contact_phone, comment, raw_comment, followup_date, status, card_ordered, card_type } = req.body;
   try {
     const result = await db.query(
-      `INSERT INTO calls (user_id,company_id,contact_name,contact_phone,comment,raw_comment,followup_date,status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-      [req.user.id, company_id, contact_name, contact_phone, comment, raw_comment, followup_date || null, status || 'logged']
+      `INSERT INTO calls (user_id,company_id,contact_name,contact_phone,comment,raw_comment,followup_date,status,card_ordered,card_type)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      [req.user.id, company_id, contact_name, contact_phone, comment, raw_comment, followup_date || null, status || 'logged', card_ordered || false, card_type || null]
     );
     const call = result.rows[0];
 
@@ -83,6 +82,25 @@ router.post('/', auth, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Kõne salvestamine ebaõnnestus' });
+  }
+});
+
+router.post('/:id/card', auth, async (req, res) => {
+  const { card_type, comment } = req.body;
+  try {
+    await db.query(
+      'UPDATE calls SET card_ordered=TRUE, card_type=$1 WHERE id=$2 AND user_id=$3',
+      [card_type, req.params.id, req.user.id]
+    );
+    await db.query(
+      `INSERT INTO calls (user_id,company_id,contact_name,contact_phone,comment,raw_comment,status,card_ordered,card_type)
+       SELECT user_id,company_id,contact_name,contact_phone,$1,$1,'logged',TRUE,$2 FROM calls WHERE id=$3`,
+      [comment, card_type, req.params.id]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kaardi tellimus ebaõnnestus' });
   }
 });
 
