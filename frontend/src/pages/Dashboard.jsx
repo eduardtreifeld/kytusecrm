@@ -68,7 +68,7 @@ function CreditCell({ call, onCreditDone }) {
   );
 }
 
-function CardOrderModal({ call, onClose }) {
+function CardOrderModal({ call, onClose, onSaved }) {
   const [cardType, setCardType] = useState(null);
   const [comment, setComment] = useState('');
   const [saving, setSaving] = useState(false);
@@ -78,17 +78,16 @@ function CardOrderModal({ call, onClose }) {
     if (!cardType || !comment.trim()) return;
     setSaving(true);
     try {
-      await api.saveCall({
-        company_id: call.company_id,
-        contact_name: call.contact_name,
-        contact_phone: call.contact_phone,
-        comment: `KAARDI TELLIMUS [${cardType}]: ${comment}`,
-        raw_comment: comment,
-        followup_date: null,
-        status: 'logged'
+      await fetch(`/api/calls/${call.id}/card`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('crm_token')}`
+        },
+        body: JSON.stringify({ card_type: cardType, comment: `KAARDI TELLIMUS [${cardType}]: ${comment}` })
       });
       setSaved(true);
-      setTimeout(() => onClose(), 1500);
+      setTimeout(() => { onSaved(); onClose(); }, 1500);
     } catch (e) {
       alert('Salvestamine ebaõnnestus');
     }
@@ -104,39 +103,35 @@ function CardOrderModal({ call, onClose }) {
         </div>
 
         {saved ? (
-          <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--teal-dark)' }}>
-            <div style={{ fontSize: 40, marginBottom: 8 }}>✅</div>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>Kaardi tellimus salvestatud!</div>
+          <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--teal-dark)' }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
+            <div style={{ fontWeight: 700, fontSize: 16, textTransform: 'uppercase' }}>Kaardi tellimus salvestatud!</div>
           </div>
         ) : (
           <>
             <div style={{ fontSize: 12, color: '#888', marginBottom: 16 }}>Vali kaardi tüüp:</div>
-
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
               <div
                 onClick={() => setCardType('SOODUSKAART')}
                 style={{
                   border: `2px solid ${cardType === 'SOODUSKAART' ? 'var(--teal-dark)' : 'var(--border)'}`,
-                  borderRadius: 8, padding: '16px 12px', cursor: 'pointer', textAlign: 'center',
-                  background: cardType === 'SOODUSKAART' ? 'var(--bg)' : 'var(--white)',
-                  transition: 'all 0.15s'
+                  borderRadius: 8, padding: '20px 12px', cursor: 'pointer', textAlign: 'center',
+                  background: cardType === 'SOODUSKAART' ? 'var(--bg)' : 'var(--white)', transition: 'all 0.15s'
                 }}
               >
-                <div style={{ fontSize: 28, marginBottom: 6 }}>🎫</div>
+                <div style={{ fontSize: 32, marginBottom: 8 }}>🎫</div>
                 <div style={{ fontWeight: 700, fontSize: 13, color: cardType === 'SOODUSKAART' ? 'var(--teal-dark)' : 'var(--dark)', textTransform: 'uppercase' }}>Sooduskaart</div>
                 <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>Allahindlused tanklates</div>
               </div>
-
               <div
                 onClick={() => setCardType('MAKSEKAART')}
                 style={{
                   border: `2px solid ${cardType === 'MAKSEKAART' ? 'var(--teal-dark)' : 'var(--border)'}`,
-                  borderRadius: 8, padding: '16px 12px', cursor: 'pointer', textAlign: 'center',
-                  background: cardType === 'MAKSEKAART' ? 'var(--bg)' : 'var(--white)',
-                  transition: 'all 0.15s'
+                  borderRadius: 8, padding: '20px 12px', cursor: 'pointer', textAlign: 'center',
+                  background: cardType === 'MAKSEKAART' ? 'var(--bg)' : 'var(--white)', transition: 'all 0.15s'
                 }}
               >
-                <div style={{ fontSize: 28, marginBottom: 6 }}>💳</div>
+                <div style={{ fontSize: 32, marginBottom: 8 }}>💳</div>
                 <div style={{ fontWeight: 700, fontSize: 13, color: cardType === 'MAKSEKAART' ? 'var(--teal-dark)' : 'var(--dark)', textTransform: 'uppercase' }}>Maksekaart</div>
                 <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>Krediit ja arveldus</div>
               </div>
@@ -152,20 +147,14 @@ function CardOrderModal({ call, onClose }) {
                   <textarea
                     value={comment}
                     onChange={e => setComment(e.target.value)}
-                    placeholder={cardType === 'SOODUSKAART'
-                      ? 'nt. 2 sooduskaarti, kontakt Mart Tamm, saata aadressile...'
-                      : 'nt. 3 maksekaart, krediidilimiit 5000€, kontakt Mart Tamm...'}
+                    placeholder={cardType === 'SOODUSKAART' ? 'nt. 2 sooduskaarti, kontakt Mart Tamm...' : 'nt. 3 maksekaart, limiit 5000€...'}
                     rows={4}
                   />
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button className="btn" onClick={onClose}>Tühista</button>
-                  <button
-                    className="btn btn-primary"
-                    style={{ flex: 1, justifyContent: 'center' }}
-                    onClick={handleSave}
-                    disabled={saving || !comment.trim()}
-                  >
+                  <button className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }}
+                    onClick={handleSave} disabled={saving || !comment.trim()}>
                     {saving ? <><span className="spinner" />Salvestab...</> : '📨 Saada tellimus'}
                   </button>
                 </div>
@@ -430,9 +419,19 @@ export default function Dashboard({ onNewCall }) {
                         onClick={() => setCompanyCall(call)}>
                         📞 Uus kontakt
                       </button>
-                      <button className="btn btn-sm" style={{ whiteSpace: 'nowrap', fontSize: 11, borderColor: 'var(--teal-dark)', color: 'var(--teal-dark)' }}
-                        onClick={() => setCardCall(call)}>
-                        💳 Telli kaart
+                      <button
+                        className="btn btn-sm"
+                        style={{
+                          whiteSpace: 'nowrap', fontSize: 11,
+                          background: call.card_ordered ? 'var(--green)' : 'var(--white)',
+                          color: call.card_ordered ? 'var(--white)' : 'var(--teal-dark)',
+                          borderColor: call.card_ordered ? 'var(--green)' : 'var(--teal-dark)',
+                          fontWeight: 700
+                        }}
+                        onClick={() => !call.card_ordered && setCardCall(call)}
+                        disabled={call.card_ordered}
+                      >
+                        {call.card_ordered ? '✅ Kaart tellitud' : '💳 Telli kaart'}
                       </button>
                     </div>
                   </td>
@@ -454,7 +453,8 @@ export default function Dashboard({ onNewCall }) {
       {cardCall && (
         <CardOrderModal
           call={cardCall}
-          onClose={() => { setCardCall(null); loadData(); }}
+          onClose={() => { setCardCall(null); }}
+          onSaved={() => { setCardCall(null); loadData(); }}
         />
       )}
     </div>
