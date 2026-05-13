@@ -31,7 +31,7 @@ export default function App() {
   return (
     <div className="app">
       <div className="nav">
-        <div className="nav-logo">⛽ KütuseCRM</div>
+        <div className="nav-logo">   <img src="/logo.png" alt="Terminal" style={{ height: 28, width: 28, objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />   TERMINAL CRM </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span className="nav-user">{user.full_name}</span>
           <button className="btn btn-sm" onClick={handleLogout}>Välju</button>
