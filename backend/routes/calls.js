@@ -103,6 +103,24 @@ router.get('/stats', auth, async (req, res) => {
   }
 });
 
+router.get('/company/:company_id', auth, async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT c.*, co.name as company_name, co.legal_name, co.sector,
+              co.reg_number, co.address, co.credit_score, co.credit_limit,
+              co.credit_days, co.credit_summary
+       FROM calls c
+       LEFT JOIN companies co ON c.company_id = co.id
+       WHERE c.company_id = $1 AND c.user_id = $2
+       ORDER BY c.call_date DESC`,
+      [req.params.company_id, req.user.id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Päring ebaõnnestus' });
+  }
+});
+
 router.get('/', auth, async (req, res) => {
   try {
     const result = await db.query(
@@ -137,10 +155,7 @@ router.put('/:id', auth, async (req, res) => {
         [req.user.id, req.params.id, 'Järelkõne', followup_date, comment]
       );
     } else {
-      await db.query(
-        'DELETE FROM calendar_events WHERE call_id=$1 AND user_id=$2',
-        [req.params.id, req.user.id]
-      );
+      await db.query('DELETE FROM calendar_events WHERE call_id=$1 AND user_id=$2', [req.params.id, req.user.id]);
     }
     res.json({ ok: true });
   } catch (err) {
