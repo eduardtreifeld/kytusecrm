@@ -138,3 +138,50 @@ body {
 .calls-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
 .calls-table tr:hover td { background: var(--bg); cursor: pointer; }
 .calls-table .nowrap { white-space: nowrap; }
+/* Tume teema */
+[data-theme="dark"] {
+  --bg: #1a2332;
+  --white: #243040;
+  --border: #2d4060;
+  --dark: #e8f0f8;
+  --teal-light: #55CED6;
+}
+
+[data-theme="dark"] body {
+  background: #111b27;
+  color: #e8f0f8;
+}
+
+[data-theme="dark"] .calls-table th {
+  background: #111b27;
+}
+
+[data-theme="dark"] .calls-table tr:hover td {
+  background: #1a2332;
+}
+
+[data-theme="dark"] .modal {
+  background: #243040;
+  color: #e8f0f8;
+}
+
+[data-theme="dark"] .field input,
+[data-theme="dark"] .field textarea,
+[data-theme="dark"] .field select {
+  background: #1a2332;
+  color: #e8f0f8;
+  border-color: #2d4060;
+}
+
+[data-theme="dark"] .firm-result {
+  background: #243040;
+}
+
+[data-theme="dark"] .firm-result:hover {
+  background: #1a2332;
+}
+
+[data-theme="dark"] .ai-box {
+  background: #1a3040;
+  border-color: #2d6080;
+}
