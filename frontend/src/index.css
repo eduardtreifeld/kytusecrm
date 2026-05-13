@@ -141,7 +141,7 @@ body {
 /* Tume teema */
 [data-theme="dark"] {
   --bg: #1a2332;
-  --white: #243040;
+  --white: #1e2d3d;
   --border: #2d4060;
   --dark: #e8f0f8;
   --teal-light: #55CED6;
@@ -156,8 +156,17 @@ body {
   background: #111b27;
 }
 
+[data-theme="dark"] .nav {
+  background: #0d1520;
+  border-bottom-color: var(--teal-dark);
+}
+
+[data-theme="dark"] .nav-logo {
+  color: #ffffff;
+}
+
 [data-theme="dark"] .tabs {
-  background: #1a2332;
+  background: #111b27;
   border-bottom-color: #2d4060;
 }
 
@@ -170,8 +179,13 @@ body {
   border-bottom-color: var(--teal-light);
 }
 
-[data-theme="dark"] .stats {
-  filter: brightness(1.1);
+[data-theme="dark"] .stat {
+  background: #0d1520;
+  border-bottom-color: var(--teal-dark);
+}
+
+[data-theme="dark"] .section {
+  background: #111b27;
 }
 
 [data-theme="dark"] .section-title {
@@ -214,7 +228,7 @@ body {
 }
 
 [data-theme="dark"] .btn {
-  background: #243040;
+  background: #1e2d3d;
   color: #e8f0f8;
   border-color: #2d4060;
 }
@@ -236,6 +250,10 @@ body {
 
 [data-theme="dark"] .modal-title {
   color: var(--teal-light);
+}
+
+[data-theme="dark"] .modal-overlay {
+  background: rgba(0,0,0,0.8);
 }
 
 [data-theme="dark"] .field label {
@@ -283,4 +301,8 @@ body {
 
 [data-theme="dark"] .nav-user {
   color: var(--teal-light);
+}
+
+[data-theme="dark"] .login-wrap .card {
+  background: #1e2d3d;
 }
