@@ -97,7 +97,6 @@ export default function NewActivity({ onSaved, onCancel }) {
         <>
           <div className="step-header">Samm 1/2 — Firma ja tegevuse tüüp</div>
 
-          {/* Tegevuse tüüp */}
           <div style={{ marginBottom: 20 }}>
             <div className="field"><label>Tegevuse tüüp</label></div>
             <div style={{ display: 'flex', gap: 10 }}>
@@ -117,7 +116,6 @@ export default function NewActivity({ onSaved, onCancel }) {
             </div>
           </div>
 
-          {/* Firma otsing */}
           <div className="field">
             <label>Firma nimi</label>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -218,14 +216,4 @@ export default function NewActivity({ onSaved, onCancel }) {
           )}
 
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-            <button className="btn" onClick={() => setStep(1)}>← Tagasi</button>
-            <button className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }}
-              onClick={saveActivity} disabled={saving || (!aiComment && !rawComment.trim())}>
-              {saving ? <><span className="spinner" />Salvestab...</> : '💾 Salvesta tegevus'}
-            </button>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
+            <butto
