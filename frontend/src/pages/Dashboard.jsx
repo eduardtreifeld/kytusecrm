@@ -32,7 +32,7 @@ function creditBg(score) {
   return '#fee2e2';
 }
 
-function DealStatusDots({ callId, initialStatus, onChanged }) {
+function DealStatusDots({ callId, initialStatus }) {
   const [status, setStatus] = useState(initialStatus || null);
   const [saving, setSaving] = useState(false);
 
@@ -49,7 +49,6 @@ function DealStatusDots({ callId, initialStatus, onChanged }) {
         body: JSON.stringify({ deal_status: newStatus })
       });
       setStatus(newStatus);
-      if (onChanged) onChanged(newStatus);
     } catch (e) { console.error(e); }
     setSaving(false);
   }
@@ -63,22 +62,17 @@ function DealStatusDots({ callId, initialStatus, onChanged }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }} onClick={e => e.stopPropagation()}>
       {dots.map(dot => (
-        <button
-          key={dot.val}
-          title={dot.title}
-          disabled={saving}
-          onClick={() => toggle(dot.val)}
+        <button key={dot.val} title={dot.title} disabled={saving} onClick={() => toggle(dot.val)}
           style={{
             width: 26, height: 26, borderRadius: '50%',
             border: `2px solid ${status === dot.val ? dot.color : '#aaa'}`,
             background: status === dot.val ? dot.color : 'transparent',
-            color: status === dot.val ? '#fff' : '#aaa',
+            color: status === dot.val ? (dot.val === 'toos' ? '#333' : '#fff') : '#aaa',
             fontSize: 10, fontWeight: 700, cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             transition: 'all 0.2s', padding: 0,
             boxShadow: status === dot.val ? `0 0 8px ${dot.color}88` : 'none'
-          }}
-        >
+          }}>
           {dot.label}
         </button>
       ))}
@@ -167,8 +161,7 @@ function CardOrderModal({ call, onClose, onSaved }) {
               <>
                 <div className="field">
                   <label>Kommentaar</label>
-                  <textarea value={comment} onChange={e => setComment(e.target.value)}
-                    placeholder="nt. 2 kaarti, kontakt Mart Tamm..." rows={4} />
+                  <textarea value={comment} onChange={e => setComment(e.target.value)} placeholder="nt. 2 kaarti, kontakt Mart Tamm..." rows={4} />
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button className="btn" onClick={onClose}>Tühista</button>
@@ -238,6 +231,7 @@ function CompanyModal({ call, onClose, onSaved }) {
             <button className="btn btn-sm" onClick={onClose}>✕</button>
           </div>
         </div>
+
         <div style={{ background: 'var(--bg)', borderRadius: 8, padding: '12px 14px', marginBottom: 16, fontSize: 13 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 16px' }}>
             <div><span style={{ color: 'var(--teal-dark)', fontWeight: 700 }}>Reg. kood: </span>{call.reg_number || '—'}</div>
@@ -247,15 +241,16 @@ function CompanyModal({ call, onClose, onSaved }) {
             <div style={{ marginTop: 8, padding: '6px 10px', background: creditBg(call.credit_score), borderRadius: 4, fontSize: 12 }}>
               <strong style={{ color: creditColor(call.credit_score) }}>Krediidiskoor: {call.credit_score}/100</strong>
               <span style={{ marginLeft: 10 }}>€{call.credit_limit?.toLocaleString()} · {call.credit_days} päeva</span>
-              <div style={{ color: '#e8f0f8', marginTop: 2 }}>{call.credit_summary}</div>
+              <div style={{ marginTop: 2 }}>{call.credit_summary}</div>
             </div>
           )}
         </div>
+
         <div style={{ marginBottom: 20 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--teal-dark)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10, borderBottom: '2px solid var(--teal-dark)', paddingBottom: 6 }}>
             Kontaktide ajalugu ({history.length})
           </div>
-          {loadingHistory ? <div style={{ color: '#888', fontSize: 13 }}><span className="spinner" /> Laadin...</div>
+          {loadingHistory ? <div style={{ fontSize: 13 }}><span className="spinner" /> Laadin...</div>
             : history.length === 0 ? <div style={{ color: '#888', fontSize: 13 }}>Ajalugu puudub.</div>
             : (
               <div style={{ maxHeight: 300, overflowY: 'auto' }}>
@@ -272,6 +267,7 @@ function CompanyModal({ call, onClose, onSaved }) {
               </div>
             )}
         </div>
+
         <div ref={newContactRef} style={{ borderTop: '2px solid var(--teal-dark)', paddingTop: 16 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--teal-dark)', textTransform: 'uppercase', marginBottom: 12 }}>+ Lisa uus kontakt</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
@@ -298,7 +294,7 @@ function CompanyModal({ call, onClose, onSaved }) {
   );
 }
 
-export default function Dashboard({ onNewCall }) {
+export default function Dashboard({ onNewCall, onNewActivity }) {
   const [calls, setCalls] = useState([]);
   const [stats, setStats] = useState({ calls_today: 0, followups: 0, firms: 0 });
   const [loading, setLoading] = useState(true);
@@ -324,12 +320,22 @@ export default function Dashboard({ onNewCall }) {
         <div className="stat"><div className="stat-n">{stats.followups}</div><div className="stat-l">Järeltegevust</div></div>
         <div className="stat"><div className="stat-n">{stats.firms}</div><div className="stat-l">Firmat</div></div>
       </div>
+
       <div className="section-title">
         Viimased tegevused
-        <button className="btn btn-sm btn-primary" onClick={onNewCall}>+ Uus kõne</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-sm btn-primary" onClick={onNewCall}>📞 Uus kõne</button>
+          <button className="btn btn-sm" style={{ borderColor: 'var(--teal-dark)', color: 'var(--teal-dark)' }} onClick={onNewActivity}>📋 Uus tegevus</button>
+        </div>
       </div>
+
       {calls.length === 0 ? (
-        <div className="empty"><div style={{ fontSize: 32, marginBottom: 8 }}>📞</div>Ühtegi kõnet pole veel logitud.<br /><button className="btn btn-primary" style={{ marginTop: 12 }} onClick={onNewCall}>Lisa esimene kõne</button></div>
+        <div className="empty">
+          <div style={{ fontSize: 32, marginBottom: 8 }}>📞</div>
+          Ühtegi kõnet pole veel logitud.
+          <br />
+          <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={onNewCall}>Lisa esimene kõne</button>
+        </div>
       ) : (
         <div style={{ overflowX: 'auto', borderRadius: 8, border: '1px solid var(--border)' }}>
           <table className="calls-table">
@@ -352,17 +358,25 @@ export default function Dashboard({ onNewCall }) {
               {calls.map(call => (
                 <tr key={call.id} onClick={() => setCompanyCall(call)}>
                   <td className="nowrap">{formatDate(call.call_date)}</td>
-                  <td className="nowrap" style={{ color: call.followup_date ? '#7a6000' : '#ccc', fontWeight: call.followup_date ? 700 : 400 }}>{formatDate(call.followup_date)}</td>
+                  <td className="nowrap" style={{ color: call.followup_date ? '#7a6000' : '#ccc', fontWeight: call.followup_date ? 700 : 400 }}>
+                    {formatDate(call.followup_date)}
+                  </td>
                   <td style={{ fontWeight: 700, whiteSpace: 'nowrap', color: 'var(--teal-dark)' }}>{call.legal_name || call.company_name || '—'}</td>
                   <td className="nowrap" style={{ color: '#888' }}>{call.reg_number || '—'}</td>
-                  <td style={{ maxWidth: 150, fontSize: 12, color: '#555' }}>{call.address ? call.address.split(',').slice(0, 2).join(',') : '—'}</td>
+                  <td style={{ maxWidth: 150, fontSize: 12, color: '#555' }}>
+                    {call.address ? call.address.split(',').slice(0, 2).join(',') : '—'}
+                  </td>
                   <td className="nowrap">
                     <div style={{ fontWeight: 600 }}>{call.contact_name}</div>
                     <div style={{ color: '#888', fontSize: 12 }}>{call.contact_phone}</div>
                   </td>
-                  <td onClick={e => e.stopPropagation()}><CreditCell call={call} onCreditDone={loadData} /></td>
+                  <td onClick={e => e.stopPropagation()}>
+                    <CreditCell call={call} onCreditDone={loadData} />
+                  </td>
                   <td style={{ maxWidth: 200 }}>
-                    <div style={{ overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', fontSize: 12 }}>{call.comment}</div>
+                    <div style={{ overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', fontSize: 12 }}>
+                      {call.comment}
+                    </div>
                   </td>
                   <td>{statusBadge(call.status, call.followup_date)}</td>
                   <td onClick={e => e.stopPropagation()}>
@@ -370,9 +384,14 @@ export default function Dashboard({ onNewCall }) {
                   </td>
                   <td onClick={e => e.stopPropagation()}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      <button className="btn btn-sm btn-primary" style={{ whiteSpace: 'nowrap', fontSize: 11 }} onClick={() => setCompanyCall(call)}>📞 Uus kontakt</button>
-                      <button className="btn btn-sm" style={{ whiteSpace: 'nowrap', fontSize: 11, background: call.card_ordered ? 'var(--green)' : 'var(--white)', color: call.card_ordered ? 'var(--white)' : 'var(--teal-dark)', borderColor: call.card_ordered ? 'var(--green)' : 'var(--teal-dark)', fontWeight: 700 }}
-                        onClick={() => !call.card_ordered && setCardCall(call)} disabled={call.card_ordered}>
+                      <button className="btn btn-sm btn-primary" style={{ whiteSpace: 'nowrap', fontSize: 11 }}
+                        onClick={() => setCompanyCall(call)}>
+                        📞 Uus kontakt
+                      </button>
+                      <button className="btn btn-sm"
+                        style={{ whiteSpace: 'nowrap', fontSize: 11, background: call.card_ordered ? 'var(--green)' : 'var(--white)', color: call.card_ordered ? 'var(--white)' : 'var(--teal-dark)', borderColor: call.card_ordered ? 'var(--green)' : 'var(--teal-dark)', fontWeight: 700 }}
+                        onClick={() => !call.card_ordered && setCardCall(call)}
+                        disabled={call.card_ordered}>
                         {call.card_ordered ? '✅ Kaart tellitud' : '💳 Telli kaart'}
                       </button>
                     </div>
@@ -383,8 +402,13 @@ export default function Dashboard({ onNewCall }) {
           </table>
         </div>
       )}
-      {companyCall && <CompanyModal call={companyCall} onClose={() => setCompanyCall(null)} onSaved={() => { setCompanyCall(null); loadData(); }} />}
-      {cardCall && <CardOrderModal call={cardCall} onClose={() => { setCardCall(null); }} onSaved={() => { setCardCall(null); loadData(); }} />}
+
+      {companyCall && (
+        <CompanyModal call={companyCall} onClose={() => setCompanyCall(null)} onSaved={() => { setCompanyCall(null); loadData(); }} />
+      )}
+      {cardCall && (
+        <CardOrderModal call={cardCall} onClose={() => { setCardCall(null); }} onSaved={() => { setCardCall(null); loadData(); }} />
+      )}
     </div>
   );
 }
