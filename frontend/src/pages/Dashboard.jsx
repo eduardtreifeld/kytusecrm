@@ -361,20 +361,22 @@ export default function Dashboard({ onNewCall, onNewActivity }) {
                   <td className="nowrap" style={{ color: call.followup_date ? '#7a6000' : '#ccc', fontWeight: call.followup_date ? 700 : 400 }}>
                     {formatDate(call.followup_date)}
                   </td>
-                  <td style={{ fontWeight: 700, whiteSpace: 'nowrap', color: 'var(--teal-dark)' }}>{call.legal_name || call.company_name || '—'}</td>
-                  <td className="nowrap" style={{ color: '#888' }}>{call.reg_number || '—'}</td>
-                  <td style={{ maxWidth: 150, fontSize: 12, color: '#555' }}>
+                  <td style={{ fontWeight: 700, whiteSpace: 'nowrap', color: 'var(--teal-dark)', fontSize: 14 }}>
+                    {call.legal_name || call.company_name || '—'}
+                  </td>
+                  <td className="nowrap" style={{ color: '#888', fontSize: 13 }}>{call.reg_number || '—'}</td>
+                  <td style={{ maxWidth: 150, fontSize: 13, color: '#555' }}>
                     {call.address ? call.address.split(',').slice(0, 2).join(',') : '—'}
                   </td>
                   <td className="nowrap">
-                    <div style={{ fontWeight: 600 }}>{call.contact_name}</div>
-                    <div style={{ color: '#888', fontSize: 12 }}>{call.contact_phone}</div>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>{call.contact_name}</div>
+                    <div style={{ color: '#888', fontSize: 13 }}>{call.contact_phone}</div>
                   </td>
                   <td onClick={e => e.stopPropagation()}>
                     <CreditCell call={call} onCreditDone={loadData} />
                   </td>
-                  <td style={{ maxWidth: 200 }}>
-                    <div style={{ overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', fontSize: 12 }}>
+                  <td style={{ maxWidth: 220 }}>
+                    <div style={{ overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 5, WebkitBoxOrient: 'vertical', fontSize: 14, lineHeight: 1.6 }}>
                       {call.comment}
                     </div>
                   </td>
